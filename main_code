@@ -1,0 +1,31 @@
+%% Energy Sys Project 
+%Need to insert data here
+%Solar
+%Load
+
+% Solve with CVX
+cvx_begin
+    variables E(13) Bc(13) Bd(13) % declare your optimization variables here
+    minimize(c*s) % objective function here
+    subject to % constraints
+    
+        % Balance power generation with power consumption
+        sum(p) == sum(l_P);
+        sum(q) == sum(l_Q);
+        
+        % Loop over each node
+        for jj = 1:13
+            
+            % Non-negative power generation
+            p(jj) >= 0;
+            q(jj) >= 0;
+            
+            % Compute apparent power from active & reactive power
+            s(jj) >= norm([p(jj) q(jj)])
+            
+        end
+        
+        % Apparent Power Limits
+        s <= s_max';
+        
+cvx_end
