@@ -3,7 +3,7 @@
 %Solar
 %Load
 
-% Solve with CVX
+% Solve with CVX - this is copied from homework 3. Need to change
 cvx_begin
     variables E(13) Bc(13) Bd(13) % declare your optimization variables here
     minimize(c*s) % objective function here
