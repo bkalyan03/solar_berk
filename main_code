@@ -1,31 +1,62 @@
-%% Energy Sys Project 
-%Need to insert data here
-%Solar matrix (every half hour)
-%Load (every 5 minutes) 
+%% Energy Systems Project
+nc = 0.5;
+nd = 0.5;
+smin = 0;
+smax = 100;
+bmin = 0;
+bmax= 100;
+Alpha = 0.95;
+Lavg = 50;
+Savg = 50;
+Ssigma = ones(48)*0.67;
+Lsigma = ones(48)*0.67;
+delta_t = 1;
+cb = 50;
+cs = 50;
+cg = ones(48)*5;
+cbcarb = ones(48)*5;
+cscarb = ones(48)*5;
+cgcarb = ones(48)*5;
+Emax = 100;
+Bmax = 100;
 
-% Solve with CVX - this is copied from homework 3. Need to change
-cvx_begin
-    variables E(24) Bc(24) Bd(24) % declare your optimization variables here
-    minimize(c*s) % objective function here
-    subject to % constraints
+%Loop over each half hour (1-48)
+for k = 1:48 
     
-        % Balance power generation with power consumption
-        sum(p) == sum(l_P);
-        sum(q) == sum(l_Q);
-        
-        % Loop over each node
-        for jj = 1:13
+    cvx_begin
+    
+    variables E(1) Bc(1) Bd(1) b(1) s(1) 
+    minimize (cb*b + cs*s + sum(cg(k)*(Lavg(k) - s*Savg(k) - Bd(k) + Bc(k))))
+    %(cbcarb*b + cscarb*s + sum(ccarb(k)*(Lavg(k) - s*Savg(k) - Bd(k) + Bc(k))))
+    subject to % constraints
             
-            % Non-negative power generation
-            p(jj) >= 0;
-            q(jj) >= 0;
-            
-            % Compute apparent power from active & reactive power
-            s(jj) >= norm([p(jj) q(jj)])
-            
-        end
-        
-        % Apparent Power Limits
-        s <= s_max';
+     	%1. Battery energy
+		E(k+1) = E(k) + (nc*Bc(k)-(1/nd)*Bd(k))*delta_t;
+		
+		%2. Battery energy limits and requirements
+		E(k) <= b*Emax;
+		E(k) >= 0; % bump up to something for the battery requirements or mess with, do we to promp it to store during the day?  
+
+		%3. Battery discharging and discharging limits
+		Bc(k) <= b*Bmax;
+		Bc(k) >= 0;
+        Bd(k) <= b*Bmax;
+                Bd(k) >= 0;
+
+        %4. SOCP Constraints
+        u_mu = Lavg(k) - s*Savg(k);
+        u_sigma = sqrt(Lsigma(k)^2 - (s^2)*(Ssigma(k)^2));
+        Pd = makedist('Normal', 'mu',u_mu(k), 'sigma',u_sigma(k)); 
+       		
+        sqrt(sigma_s(k)^2 * s^2 + sigma_l(k)^2) <= (1/(icdf(Pd,alpha))) *  (s * Savg(k) + Bd(k) - Bc(k) - Lavg(k) + G_max);
+        sqrt(sigma_s(k)^2 * s^2 + sigma_l(k)^2) <= (1/(icdf(Pd, alpha))) * (-s * Savg(k) - Bd(k) + Bc(k)+ Lavg(k) + G_max);
+
+		%5. solar and battery scale factor limits
+		s >= smin;
+		s <= smax;
+		b >= bmin;
+		b <= bmax; 
         
 cvx_end
+
+end
