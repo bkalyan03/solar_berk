@@ -1,7 +1,7 @@
 %% Energy Sys Project 
 %Need to insert data here
-%Solar
-%Load
+%Solar matrix (every half hour)
+%Load (every 5 minutes) 
 
 % Solve with CVX - this is copied from homework 3. Need to change
 cvx_begin
