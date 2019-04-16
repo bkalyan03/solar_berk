@@ -14,9 +14,9 @@ delta_t = 1;
 cb = 50;
 cs = 50;
 cg = ones(48)*5;
-cbcarb = ones(48)*5;
-cscarb = ones(48)*5;
-cgcarb = ones(48)*5;
+cbcarb = ones(48)*5;   
+cscarb = ones(48)*5;   %solar is avg 25 g C/kWh 
+cgcarb = ones(48)*5;   %natural gas is avg 200 g C/kWh
 Emax = 100;
 Bmax = 100;
 
