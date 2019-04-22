@@ -168,4 +168,44 @@ cg = ones(48)*5;
         
 cvx_end
 
+%After checking in with Scott - yields a number
 
+%% TAKING OUT FOR LOOP
+%Loop over each half hour (1-48)
+s = 1;
+b = 1;
+    cvx_begin
+    
+    variables E(49) Bc(48) Bd(48) G(48)
+    minimize (cb(k)*b + cs(k)*s + sum(cg(k)*G))
+    %(cbcarb*b + cscarb*s + sum(ccarb(k)*(Lavg(k) - s*Savg(k) - Bd(k) + Bc(k))))
+    subject to % constraints
+    %6 solar and battery scale factor limits      
+        %s >= smin;
+		%s <= smax;
+		%b >= bmin;
+		%b <= bmax;
+        
+        for k = 1:48 
+
+        %1. Battery energy
+		E(k+1) == E(k) + (nc*Bc(k)-(1/nd)*Bd(k))*delta_t;
+        E(1) == 1;
+		
+		%2. Battery energy limits and requirements
+		E(k) <= b*Emax;
+		E(k) >= 0; % bump up to something for the battery requirements or mess with, do we to promp it to store during the day?  
+		%3. Battery discharging and discharging limits
+		Bc(k) <= b*Bmax;
+		Bc(k) >= 0;
+        Bd(k) <= b*Bmax;
+        Bd(k) >= 0;
+        
+        %4. Grid power
+        %G(k) <= Gmax;
+        %G(k) >= -Gmax;
+
+        %5 simple power balance
+        L(k) == s*S(k) + Bd(k) - Bc(k) + G(k);
+        end     
+cvx_end
