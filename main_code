@@ -172,12 +172,10 @@ cvx_end
 
 %% TAKING OUT FOR LOOP
 %Loop over each half hour (1-48)
-%s = 1;
-%b = 1;
     cvx_begin
     
     variables E(49) Bc(48) Bd(48) G(48) b(1) s(1)
-    minimize sum(cg'*G) + (cb*b) + cs*s
+    minimize sum(cg'*G) + (cb*b) + (cs*s)
     %(cbcarb*b + cscarb*s + sum(ccarb(k)*(Lavg(k) - s*Savg(k) - Bd(k) + Bc(k))))
     subject to % constraints
     %6 solar and battery scale factor limits      
@@ -191,7 +189,7 @@ cvx_end
         %1. Battery energy
 		E(k+1) == E(k) + (nc*Bc(k)-(1/nd)*Bd(k))*delta_t;
         %Initial SOC level
-        E(1) == 1;
+        E(1) == 0;
 		
 		%2. Battery energy limits and requirements
 		E(k) <= b*Emax;
@@ -203,7 +201,7 @@ cvx_end
         Bd(k) >= 0;
         
         %4. Grid power
-        %G(k) <= Gmax;
+        G(k) <= Gmax;
         G(k) >= -Gmax;
 
         %5 simple power balance
