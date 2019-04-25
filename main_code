@@ -208,3 +208,90 @@ cvx_end
         BerkDmd(k) == s*slrvag(k) + Bd(k) - Bc(k) + G(k);
         end     
 cvx_end
+
+%% second order cone 4/24
+%% Energy Systems Project
+nc = 0.5;
+nd = 0.5;
+smin = 0;
+smax = 1;
+bmin = 0.;
+bmax= 1;
+alpha = 0.95;
+Lavg = ones(48,1)*50;
+Savg = ones(48,1)*50;
+Ssigma = ones(48,1)*0.67;
+Lsigma = ones(48,1)*0.67;
+delta_t = 0.5;
+cg = ones(48,1)*0.042;
+cb = 209; %around $0.34/kWh for behind-the-meter commercial lithium PV and storage (Lazard)
+cs = 1110; %$around $0.043/kWh LCOE for utility scale (Lazard)
+cbcarb = ones(48)*5;
+cscarb = ones(48)*5;
+cgcarb = ones(48)*5;
+Emax = 50;
+Bmax = 50;
+Gmax = 1000;
+
+S = randi(60000,48,1);
+L = randi(70000,48,1);
+
+%solar data   starting at midnight, going to 11:30 pm... for april 20.    units are in  %kWh/m^2. so for solar generated add a *eff*.5hr?
+slrvag= [0 0 0 0 0 0 0 0 0 0 0 0 70.16 134.89 165.3 229.3 253.78 264.33 274.1 268.5 293.67 306.17 313.39 331.83 314.17 315.61 359.53 382.69 330.6 338.0 322.5 301.39 264.39 270.90 221.92 183.22 137.14 32.89 0 0 0 0 0 0 0 0 0 0]; 
+slrstd= [0 0 0 0 0 0 0 0 0 0 0 0 60.79 109.99 134.14 128.10 148.64 160.32 168.25 171.33 199.66 192.30 204.60 188.14 180.37 189.84 174.69 146.51 168.37 153.60 159.73 153.24 153.43 118.86 121.11 101.18 72.75 33.880 0 0 0 0 0 0 0 0 0];
+slrvar= [0 0 0 0 0 0 0 0 0 0 0 0 3696 12099 17995 16409 22092 25703 28307 29354 39863 36978 41862 35398 32534 36039 30517 21464 28349 23592 25513 23482 23542 14128 14667 10238 5293 1148 0 0 0 0 0 0 0 0 0 0]; 
+
+solareff = .17; %average solar efficiency
+
+BerkDmd = [67.09 65.68 64.11 63.11 62.20 61.69 61.04 60.61 61.02 62.10 63.60 65.95 69.13 72.27 74.08 75.32 74.23 73.50 72.05 71.03 69.93 69.53 69.09 68.81 68.35 67.88 67.99 68.35 68.32 68.17 68.57 69.42 69.97 70.90 72.31 73.68 75.21 76.25 78.08 79.45 82.14 82.42 81.20 79.87 77.46 74.76 71.92 69.47];
+
+%%
+
+%After checking in with Scott - yields a number
+
+%% TAKING OUT FOR LOOP
+%Loop over each half hour (1-48)
+    cvx_begin
+    
+    variables E(49) Bc(48) Bd(48) G(48) b(1) s(1)
+    minimize sum(cg'*(BerkDmd' - s*slrvag' - Bd + Bc)) + (cb*b) + (cs*s)
+    %(cbcarb*b + cscarb*s + sum(ccarb(k)*(Lavg(k) - s*Savg(k) - Bd(k) + Bc(k))))
+    subject to % constraints
+    %6 solar and battery scale factor limits      
+        s >= smin;
+		s <= smax;
+		b >= bmin;
+		b <= bmax;
+        
+        for k = 1:48 
+k
+        %Initial SOC level
+        E(1) == 0;
+        %1. Battery energy
+		E(k+1) == E(k) + (nc*Bc(k)-(1/nd)*Bd(k))*delta_t;
+        
+		
+		%2. Battery energy limits and requirements
+		E(k) <= b*Emax;
+		E(k) >= 0; % bump up to something for the battery requirements or mess with, do we to promp it to store during the day?  
+		%3. Battery discharging and discharging limits
+		Bc(k) <= b*Bmax;
+		Bc(k) >= 0;
+        Bd(k) <= b*Bmax;
+        Bd(k) >= 0;
+        
+        %4. Grid power
+        %G(k) <= Gmax;
+        %G(k) >= -Gmax;
+        
+        norm([Ssigma(k)*s Lsigma(k)]) <= (1/(erfinv(alpha)) *  (s * slrvag(k) + Bd(k) - Bc(k) - BerkDmd(k) + Gmax));
+        norm([Ssigma(k)*s Lsigma(k)]) <= (1/(erfinv(alpha)) * (-s * slrvag(k) - Bd(k) + Bc(k)+ BerkDmd(k) + Gmax));
+
+        %5 simple power balance
+        %BerkDmd(k) == s*slrvag(k) + Bd(k) - Bc(k) + G(k);
+        
+        end   
+        
+cvx_end
+
+
