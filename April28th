@@ -1,0 +1,92 @@
+%Working 4/28/2019
+clc 
+clear all
+load('C:\Users\Bavisha\OneDrive\Documents\Academics\Berkeley\Spring 2019\Energy Sys\mean_load.mat')
+load('C:\Users\Bavisha\OneDrive\Documents\Academics\Berkeley\Spring 2019\Energy Sys\stddev_load.mat')
+load('C:\Users\Bavisha\OneDrive\Documents\Academics\Berkeley\Spring 2019\Energy Sys\TOTALAVG.mat')
+load('C:\Users\Bavisha\OneDrive\Documents\Academics\Berkeley\Spring 2019\Energy Sys\TOTALSTD.mat')
+
+%% Energy Systems Project
+nc = 0.9; %[]
+nd = 0.9;%[]
+smin = 0;%[]
+smax = 1;%[]
+bmin = 0.;%[]
+bmax= 1; %[]
+alpha = 0.95; %[]
+delta_t = 0.5; %[hr]
+%costs
+cg = ones(48,1)*0.075; %[$/kW] nat gas
+cb = 0.022; % [$/kWh] battery
+cs = 0.003168; % [$/kW] solar'
+%emissions 
+eg = ones(48,1)*(1.885e-4); %!!!![$/kW] emissiosn from grid
+eb = (10e-5); % [$/kWh] %changed by bavisha 
+es = (2.8e-5);% [$/kW]
+Emax = 8000; %[kWh] from slide
+Bmax = 1000; %[kW]
+Gmax = 40000;%[kW]
+Smaxreal = 1.4e6; %Find [kW]
+weight = 0.75; %[]
+mean_load_new = mean_load/3; %[kW]
+stddev_load_new = stddev_load/3; %[kW]
+TOTALAVG_new = 0.15*27*1e6*0.05*TOTALAVG/1000; %solar data [kW]
+TOTALSTD_new = 0.15*27*1e6*0.05*TOTALSTD/1000; %solar data [kW]
+
+%% TAKING OUT FOR LOOP
+%Loop over each half hour (1-48)
+costs = zeros(1,1);
+s_out = zeros(1,1);
+b_out = zeros(1,1);
+count = 0;
+for weight = 0:10:100
+    cvx_begin
+    
+    variables E(49) Bc(48) Bd(48) G(48) b(1) s(1)
+    minimize (((sum(cg'*(mean_load_new - s*TOTALAVG_new' - Bd + Bc)) + (cb*b*Bmax) + (cs*s*Smaxreal))) + ((sum(weight*eg'*(mean_load_new - s*TOTALAVG_new' - Bd + Bc)) + (weight*eb*b*Bmax) + (weight*es*s*Smaxreal))));
+    subject to % constraints
+    %6 solar and battery scale factor limits      
+        s >= smin;
+		s <= smax;
+		b >= bmin;
+		b <= bmax;
+        
+        for k = 1:48 
+        
+        %Initial SOC level
+        E(1) == 0.1;
+        %1. Battery energy
+		E(k+1) == E(k) + (nc*Bc(k)-(1/nd)*Bd(k))*delta_t + nc;
+
+        
+		
+		%2. Battery energy limits and requirements
+		E(k) <= b*Emax;
+		E(k) >= 0; % bump up to something for the battery requirements or mess with, do we to promp it to store during the day?  
+		%3. Battery discharging and discharging limits
+		Bc(k) <= b*Bmax;
+		Bc(k) >= 0;
+        Bd(k) <= b*Bmax;
+        Bd(k) >= 0;
+        
+        %4. Grid power
+        %G(k) <= Gmax;
+        %G(k) >= -Gmax;
+        
+        norm([TOTALSTD_new(k)*s stddev_load_new(k)]) <= (1/(erfinv(alpha)) *  (s*TOTALAVG_new(k) + Bd(k) - Bc(k) - mean_load_new(k) + Gmax));
+        norm([TOTALSTD_new(k)*s stddev_load_new(k)]) <= (1/(erfinv(alpha)) * (-s*TOTALSTD_new(k) - Bd(k) + Bc(k)+ mean_load_new(k)));
+
+        %5 simple power balance
+        %BerkDmd(k) == s*slrvag(k) + Bd(k) - Bc(k) + G(k);
+        
+        end   
+        
+cvx_end
+count = count + 1
+costs(count) = cvx_optval;
+costs_dolla(count) = (sum(cg'*(mean_load_new - s*TOTALAVG_new' - Bd + Bc)) + (cb*b*Bmax) + (cs*s*Smaxreal));
+costs_emiss(count) = ((sum(weight*eg'*(mean_load_new - s*TOTALAVG_new' - Bd + Bc)) + (weight*eb*b*Bmax) + (weight*es*s*Smaxreal)));
+s_out(count) = s;
+b_out(count) = b;
+
+end
