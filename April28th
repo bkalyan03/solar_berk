@@ -74,7 +74,7 @@ for weight = 0:10:100
         %G(k) >= -Gmax;
         
         norm([TOTALSTD_new(k)*s stddev_load_new(k)]) <= (1/(erfinv(alpha)) *  (s*TOTALAVG_new(k) + Bd(k) - Bc(k) - mean_load_new(k) + Gmax));
-        norm([TOTALSTD_new(k)*s stddev_load_new(k)]) <= (1/(erfinv(alpha)) * (-s*TOTALSTD_new(k) - Bd(k) + Bc(k)+ mean_load_new(k)));
+        norm([TOTALSTD_new(k)*s stddev_load_new(k)]) <= (1/(erfinv(alpha)) * (-s*TOTALSTD_new(k) - Bd(k) + Bc(k)+ mean_load_new(k)+Gmax));
 
         %5 simple power balance
         %BerkDmd(k) == s*slrvag(k) + Bd(k) - Bc(k) + G(k);
