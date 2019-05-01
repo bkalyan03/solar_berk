@@ -22,8 +22,8 @@ bmax= 1; %[]
 alpha = 0.95; %[]
 delta_t = 0.5; %[hr]
 %costs
-cg = PGE*0.8; %[$/kW] grid
-%cg = ones(48,1)*0.042; %natural gas [$/kW]
+%cg = PGE*0.8; %[$/kW] grid
+cg = ones(48,1)*0.042; %natural gas [$/kW]
 cb = 0.00217; % [$/kWh] battery
 cs = 0.00317; % [$/kW] solar'
 %emissions 
@@ -63,7 +63,7 @@ count = 0;
         for k = 1:48; 
 
         %Initial SOC level
-        E(1) == 0.1;
+        E(1) == 4000;
         E(49) >= E(1);
         %1. Battery energy
 		E(k+1) == E(k) + (nc*Bc(k)-(1/nd)*Bd(k))*delta_t;
@@ -84,8 +84,8 @@ count = 0;
         %G(k) >= -Gmax;
         
         norm([TOTALSTD_new(k)*s stddev_load_new(k)]) <= (1/(erfinv(alpha)) *  (s*TOTALAVG_new(k) + Bd(k) - Bc(k) - mean_load_new(k) + Gmax));
-        norm([TOTALSTD_new(k)*s stddev_load_new(k)]) <= (1/(erfinv(alpha)) * (-s*TOTALSTD_new(k) - Bd(k) + Bc(k)+ mean_load_new(k)) + Gmax);
-        %(mean_load_new(k) - s*TOTALAVG_new(k)' - Bd(k) + Bc(k)) >= 0
+        %norm([TOTALSTD_new(k)*s stddev_load_new(k)]) <= (1/(erfinv(alpha)) * (-s*TOTALSTD_new(k) - Bd(k) + Bc(k)+ mean_load_new(k)) + Gmax);
+        (mean_load_new(k) - s*TOTALAVG_new(k)' - Bd(k) + Bc(k)) >= 0
                 
         end   
         
