@@ -22,22 +22,24 @@ bmax= 1; %[]
 alpha = 0.95; %[]
 delta_t = 0.5; %[hr]
 %costs
-cg = PGE*0.8; %[$/kW] grid/natural gas
+%cg = PGE*0.8; %[$/kW] grid
+cg = ones(48,1)*0.042; %natural gas [$/kW]
 cb = 0.00217; % [$/kWh] battery
 cs = 0.00317; % [$/kW] solar'
 %emissions 
 eg = ones(48,1)*(1.885e-4); %!!!![$/kW] emissiosn from grid
 eb = (10e-5); % [$/kWh] %changed by bavisha 
 es = (2.8e-5);% [$/kW]
-Emax = 8000; %[kWh] from slide
+Emax = 10000; %[kWh] from slide
 Bmax = 4000; %[kW]
 Gmax = 60000;%[kW]
-Smaxreal = 1.4e6; %Find [kW]
+frac_poss_s = 0.1; %max possible area fraction of solar in Berkeley
+Smaxreal = (27e6)*0.26*0.15*frac_poss_s; %Find [kW] 27e6 m2 * 0.26 kW/m2 * 0.15 
 weight = 0.75; %[]
 mean_load_new = mean_load; %[kW]
 stddev_load_new = stddev_load; %[kW]
-TOTALAVG_new = 0.15*27*1e6*0.025*(TOTALAVG/1000); %solar data [kW]
-TOTALSTD_new = 0.15*27*1e6*0.025*(TOTALSTD/1000); %solar data [kW]
+TOTALAVG_new = 0.15*27*1e6*frac_poss_s*(TOTALAVG/1000); %solar data [kW]
+TOTALSTD_new = 0.15*27*1e6*frac_poss_s*(TOTALSTD/1000); %solar data [kW]
 Excess = zeros(1,48);
 
 %% TAKING OUT FOR LOOP
@@ -46,11 +48,11 @@ costs = zeros(1,1);
 s_out = zeros(1,1);
 b_out = zeros(1,1);
 count = 0;
-%for weight = 0:10:100
+for Emax = 1000:1000:9000
     cvx_begin
     
     variables E(49) Bc(48) Bd(48) G(48) b(1) s(1)
-    minimize (((sum(cg'*(mean_load_new - s*TOTALAVG_new' - Bd + Bc)) + (cb*b*Bmax) + (cs*s*Smaxreal))) + ((sum(weight*eg'*(mean_load_new - s*TOTALAVG_new' - Bd + Bc)) + (weight*eb*b*Bmax) + (weight*es*s*Smaxreal))));
+    minimize (((sum(cg'*(mean_load_new - s*TOTALAVG_new' - Bd + Bc)) + (cb*b*Bmax) + (cs*s*Smaxreal))) + ((sum(eg'*(mean_load_new - s*TOTALAVG_new' - Bd + Bc)) + (eb*b*Bmax) + (es*s*Smaxreal))));
     subject to % constraints
     %6 solar and battery scale factor limits      
         s >= smin;
@@ -61,7 +63,7 @@ count = 0;
         for k = 1:48; 
 
         %Initial SOC level
-        E(1) == 3000;
+        E(1) == 4000;
         E(49) >= E(1);
         %1. Battery energy
 		E(k+1) == E(k) + (nc*Bc(k)-(1/nd)*Bd(k))*delta_t + nc;
@@ -90,27 +92,37 @@ count = 0;
         end   
         
 cvx_end
-%count = count + 1
-%costs(count) = cvx_optval;
-%costs_dolla(count) = (sum(cg'*(mean_load_new - s*TOTALAVG_new' - Bd + Bc)) + (cb*b*Bmax) + (cs*s*Smaxreal));
-%costs_emiss(count) = ((sum(weight*eg'*(mean_load_new - s*TOTALAVG_new' - Bd + Bc)) + (weight*eb*b*Bmax) + (weight*es*s*Smaxreal)));
-%s_out(count) = s;
-%b_out(count) = b;
+count = count + 1
+costs(count) = cvx_optval;
+costs_dolla(count) = (sum(cg'*(mean_load_new - s*TOTALAVG_new' - Bd + Bc)) + (cb*b*Bmax) + (cs*s*Smaxreal));
+costs_emiss(count) = ((sum(weight*eg'*(mean_load_new - s*TOTALAVG_new' - Bd + Bc)) + (weight*eb*b*Bmax) + (weight*es*s*Smaxreal)));
+s_out(count) = s;
+b_out(count) = b;
+
+g(count,:) = mean_load_new - s*TOTALAVG_new' - Bd + Bc;
+frac_clean(count) = sum(s*TOTALAVG_new)/(sum(s*TOTALAVG_new) + sum(g(count,:)))
+sm2(count) = s*Smaxreal/.26; %m2
+skW(count) = s*Smaxreal; %kW, reference: Berkeley now = 11MW
+
+end
         
-        
-cost = cvx_optval;
-costs_dolla = (sum(cg'*(mean_load_new - s*TOTALAVG_new' - Bd + Bc)) + (cb*b*Bmax) + (cs*s*Smaxreal));
-costs_emiss = ((sum(weight*eg'*(mean_load_new - s*TOTALAVG_new' - Bd + Bc)) + (weight*eb*b*Bmax) + (weight*es*s*Smaxreal)));
-s_out = s;
-b_out = b;
-g = mean_load_new - s*TOTALAVG_new' - Bd + Bc;
-frac_clean = s*Smaxreal/(s*Smaxreal + sum(g))
-sm2 = s_out*Smaxreal/.26;
+%%        
+% cost = cvx_optval;
+% costs_dolla = (sum(cg'*(mean_load_new - s*TOTALAVG_new' - Bd + Bc)) + (cb*b*Bmax) + (cs*s*Smaxreal));
+% costs_emiss = ((sum(weight*eg'*(mean_load_new - s*TOTALAVG_new' - Bd + Bc)) + (weight*eb*b*Bmax) + (weight*es*s*Smaxreal)));
+% s_out = s;
+% b_out = b;
+% g = mean_load_new - s*TOTALAVG_new' - Bd + Bc;
+% frac_clean = sum(s*TOTALAVG_new)/(sum(s*TOTALAVG_new) + sum(g))
+% sm2 = s_out*Smaxreal/.26; %m2
+% skW = s_out*Smaxreal; %kW, reference: Berkeley now = 11MW
+
+
 
 %%
 close all
 fs = 12;
-fig1 = figure
+fig1 = figure;
 plot(Bc)
 hold on
 plot(Bd)
@@ -124,7 +136,7 @@ set(gca, 'xticklabel',xlab,'FontSize',fs);
 xlabel('Time of Day','FontSize',fs)
 ylabel('Battery Power [kW]','FontSize',fs)
 
-fig3 = figure
+fig3 = figure;
 plot(g)
 xpts = (1:6:45);
 xticks(xpts);
@@ -135,21 +147,21 @@ set(gca, 'xticklabel',xlab,'FontSize',fs);
 xlabel('Time of Day','FontSize',fs)
 ylabel('Backup Power [kW]','FontSize',fs)
 
-fig4 = figure
+fig4 = figure;
 plot(E(1:49))
 xpts = (1:6:45);
 xticks(xpts);
 xlab = {'00:00','03:00','06:00','09:00','12:00','15:00','18:00','21:00'};
 xticklabels(xlab);
 set(gca,'xtick',xpts);
-set(gca, 'xticklabel',xlab);
+set(gca, 'xticklabel',xlab,'FontSize',fs);
 xlabel('Time of Day','FontSize',fs,'FontSize',fs)
 ylabel('Battery Energy Level [kWh]','FontSize',fs)
 
-fig5 = figure
+fig5 = figure;
 plot(mean_load)
 hold on
-plot(TOTALAVG_new)
+plot(TOTALAVG_new*s_out)
 legend({'Load','Solar'},'FontSize',fs)
 xpts = (1:6:45);
 xticks(xpts);
@@ -159,6 +171,5 @@ set(gca,'xtick',xpts);
 set(gca, 'xticklabel',xlab,'FontSize',fs);
 xlabel('Time of Day','FontSize',fs)
 ylabel('Power [kW]','FontSize',fs)
-
 
 
