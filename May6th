@@ -197,8 +197,8 @@ set(gca, 'FontName', 'Times New Roman','FontSize',15)
 fig6 = figure
 plot(sc,'Linewidth',1.5)
 hold on
-plot(TOTALAVG_new*s_out,'LineWidth',1.5)
-plot(TOTALAVG_new*s_out -sc,'--','LineWidth',1.5)
+plot(TOTALAVG_new*s,'LineWidth',1.5)
+plot(TOTALAVG_new*s - sc,'--','LineWidth',1.5)
 legend({'Curtailed','Generated','Difference'},'FontSize',fs)
 xpts = (1:6:45);
 xticks(xpts);
